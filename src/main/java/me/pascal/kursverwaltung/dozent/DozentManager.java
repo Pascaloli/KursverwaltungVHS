@@ -1,10 +1,13 @@
 package me.pascal.kursverwaltung.dozent;
 
-import java.io.BufferedReader;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Optional;
 
@@ -14,6 +17,7 @@ public class DozentManager {
 	private final File dozentenDatei = new File("dozenten.txt").getAbsoluteFile();
 
 	public DozentManager() {
+		//Initialisierung
 		dozentenEinlesen();
 	}
 
@@ -23,30 +27,39 @@ public class DozentManager {
 		return optionalDozent.orElse(null);
 	}
 
+	public void addDozent(Dozent dozent) {
+		this.dozenten.add(dozent);
+		dozentenSpeichern();
+	}
+
 	public ArrayList<Dozent> getDozenten() {
 		return this.dozenten;
 	}
 
 	private void dozentenEinlesen() {
 		try {
-			FileReader fileReader = new FileReader(this.dozentenDatei);
-			BufferedReader bufferedReader = new BufferedReader(fileReader);
 
-			String line;
-			while ((line = bufferedReader.readLine()) != null) {
-				String[] split = line.split(":");
-				String title = split[0];
-				String name = split[1];
-				String email = split[2];
-				String telNr = split[3];
-
-				Dozent dozent = new Dozent(title, name, email, telNr);
-				this.dozenten.add(dozent);
+			String json = new String(Files.readAllBytes(dozentenDatei.toPath()));
+			if (!json.isEmpty()) {
+				Type listType = new TypeToken<ArrayList<Dozent>>() {
+				}.getType();
+				dozenten = new Gson().fromJson(json, listType);
 			}
-			bufferedReader.close();
-			fileReader.close();
 		} catch (FileNotFoundException | NullPointerException e) {
 			dozentenDateiErstellen();
+			dozentenSpeichern();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+	}
+
+	public void dozentenSpeichern() {
+		try {
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			Files.write(dozentenDatei.toPath(), gson.toJson(dozenten).getBytes());
+		} catch (FileNotFoundException | NullPointerException e) {
+			dozentenDateiErstellen();
+			dozentenSpeichern();
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}

@@ -33,8 +33,9 @@ public class Kurs {
 		return title;
 	}
 
-	public void setTitle(String title) {
+	public boolean setTitle(String title) {
 		this.title = title;
+		return true;
 	}
 
 	public Date getBeginn() {
