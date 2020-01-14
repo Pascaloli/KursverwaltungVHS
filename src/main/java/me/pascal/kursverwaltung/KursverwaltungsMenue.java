@@ -1,10 +1,15 @@
 package me.pascal.kursverwaltung;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.Scanner;
 import java.util.stream.IntStream;
 import me.pascal.kursverwaltung.dozent.Dozent;
 import me.pascal.kursverwaltung.kurs.Kurs;
+import org.omg.Messaging.SyncScopeHelper;
 
 public class KursverwaltungsMenue {
 
@@ -14,6 +19,7 @@ public class KursverwaltungsMenue {
 		menu();
 	}
 
+	//Auswahl menü
 	private static void menu() {
 		String eingabe = eingabeAbfragen(
 				"Willkommen in der VHS Kursverwaltung 2020, was möchten sie tun?\n"
@@ -89,7 +95,7 @@ public class KursverwaltungsMenue {
 		//Email des Dozenten festlegen
 		do {
 			String email = eingabeAbfragen(
-					"Wie lautet die Email von " + dozent.getTitle() + " " + dozent.getName() + "?");
+					"Wie lautet die Email von " + dozent.getFullName() + "?");
 			if (email == null) {
 				menu();
 				return;
@@ -102,7 +108,7 @@ public class KursverwaltungsMenue {
 		//Telefonnummer des Dozenten festlegen
 		do {
 			String telnr = eingabeAbfragen(
-					"Wie lautet die Telefonnummer von " + dozent.getTitle() + " " + dozent.getName() + "?");
+					"Wie lautet die Telefonnummer von " + dozent.getFullName() + "?");
 			if (telnr == null) {
 				menu();
 				return;
@@ -114,17 +120,27 @@ public class KursverwaltungsMenue {
 
 		Kursverwaltung.instance.getDozentManager().addDozent(dozent);
 		System.out.println("==========================================================");
-		System.out.println("Der Dozent " + dozent.getTitle() + " " + dozent.getName()
+		System.out.println("Der Dozent " + dozent.getFullName()
 				+ " wurde erfolgreich angelegt.");
+		//Zurück zum menü
+		menu();
 	}
 
 	private static void dozentenBearbeitenUebersicht() {
+		if(Kursverwaltung.instance.getDozentManager().getDozenten().size() == 0){
+			System.out.println("==========================================================");
+			System.out.println("Es existieren noch keine Dozenten.");
+			menu();
+		}
+
+		//Übersicht der Dozenten aufbauen
 		int index = 1;
 		StringBuilder uebersicht = new StringBuilder();
 		for (Dozent dozent : Kursverwaltung.instance.getDozentManager().getDozenten()) {
-			uebersicht.append("(" + index++ + ") " + dozent.getTitle() + " " + dozent.getName() + "\n");
+			uebersicht.append("(" + index++ + ") " + dozent.getFullName() + "\n");
 		}
 
+		//Dozenten auswahl abfragen
 		int auswahl = eingabeAbfragenInt(
 				"Bitte wählen Sie den zu bearbeitenden Dozenten aus.\n" + uebersicht
 						.substring(0, uebersicht.length() - 1));
@@ -141,10 +157,12 @@ public class KursverwaltungsMenue {
 			return;
 		}
 
+		//Bearbeitungsmenü aufrufen
 		dozentBearbeiten(auswahl - 1);
 	}
 
 	private static void dozentBearbeiten(int index) {
+		//Übersucht der zu bearbeitenden Felder anzeigen
 		StringBuilder uebersicht = new StringBuilder();
 		Dozent dozent = Kursverwaltung.instance.getDozentManager().getDozenten().get(index);
 		uebersicht.append("(1) Titel (").append(dozent.getTitle()).append(")\n");
@@ -153,12 +171,14 @@ public class KursverwaltungsMenue {
 		uebersicht.append("(4) Telefonnummer (" + dozent.getTelNr() + ")\n");
 		uebersicht.append("(5) Löschen");
 
+		//Eingabe abfragen
 		int eingabe = eingabeAbfragenInt(
 				"Bitte wählen Sie das zu bearbeitende Feld aus.\n" + uebersicht.toString());
 		if (eingabe == -1) {
 			dozentenBearbeitenUebersicht();
 			return;
 		}
+
 		//Eingabe validieren
 		if (eingabe < 1 || eingabe > 5) {
 			ungueltigeEingabe(eingabe);
@@ -166,22 +186,40 @@ public class KursverwaltungsMenue {
 			return;
 		}
 
+		//Löschen
 		if (eingabe == 5) {
-			String bestätigung = eingabeAbfragen("Löschen bestätigen? j/n", false);
+			//Überprüfen ob der Dozent in einem kurs ist
+			boolean inKurs = Kursverwaltung.instance.getKursManager().isDozentInKursen(dozent);
+
+			String bestätigung = eingabeAbfragen("Löschen bestätigen? (j/n)" + (inKurs
+					? "\n!!!Wenn sie diesen Dozenten löschen werden auch alle zugehörigen Kurse gelöscht!!!"
+					: ""), false);
+
 			if (bestätigung.equalsIgnoreCase("j") || bestätigung.equalsIgnoreCase("Y")) {
 				Kursverwaltung.instance.getDozentManager().getDozenten().remove(index);
 				Kursverwaltung.instance.getDozentManager().dozentenSpeichern();
+
+				//Zugehörige Kurse löschen
+				if (inKurs) {
+					Kursverwaltung.instance.getKursManager().getKurse()
+							.removeAll(Kursverwaltung.instance.getKursManager().getKurseByDozent(dozent));
+					Kursverwaltung.instance.getKursManager().kurseSpeichern();
+				}
+
 				System.out.println("==========================================================");
 				System.out.println("Der Dozent wurde erfolgreich gelöscht.");
+				//Zurück zur übersicht
 				dozentenBearbeitenUebersicht();
 				return;
 			} else if (bestätigung.equalsIgnoreCase("n")) {
+				//Abbrechen und zurück zur auswahl der zu bearbeitenden felder
 				abbrechen();
 				dozentBearbeiten(index);
 				return;
 			}
 		}
 
+		//Alles andere außer löschen
 		boolean valueChanged = false;
 		do {
 			String neuerWert = eingabeAbfragen("Bitte geben sie einen neuen Wert ein.");
@@ -190,6 +228,7 @@ public class KursverwaltungsMenue {
 				return;
 			}
 
+			//selbsterklärend
 			if (eingabe == 1) {
 				if (dozent.setTitle(neuerWert)) {
 					valueChanged = true;
@@ -208,23 +247,31 @@ public class KursverwaltungsMenue {
 				}
 			}
 
-			if(!valueChanged){
+			//Wenn die änderung nicht erfolgreich war fehler ausgeben
+			if (!valueChanged) {
 				ungueltigeEingabe(neuerWert);
 			}
 
-
+			//Das alles so lange bis erfolgreich etwas geändert wurde
 		} while (!valueChanged);
 
 		Kursverwaltung.instance.getDozentManager().dozentenSpeichern();
 		System.out.println("==========================================================");
 		System.out.println("Wert erfolgreich aktualisiert");
+		//ZUrück zur dozenten übersicht
 		dozentBearbeiten(index);
 	}
 
 
 	private static void kursAnlegen() {
-		Kurs kurs = new Kurs();
+		if(Kursverwaltung.instance.getDozentManager().getDozenten().size() == 0){
+			System.out.println("==========================================================");
+			System.out.println("Die können momentan keinen Kurs anlegen, da keine Dozenten existieren.");
+			menu();
+		}
 
+
+		Kurs kurs = new Kurs();
 		//Titel des kurses festlegen
 		do {
 			String title = eingabeAbfragen("Wie heißt der Kurs, welchen Sie anlegen wollen?");
@@ -241,9 +288,63 @@ public class KursverwaltungsMenue {
 			}
 		} while (kurs.getTitle() == null);
 
-		kurs.setBeginn(new Date(20158184));
-		kurs.setEnde(new Date(98413156));
-		kurs.setLeiter(Kursverwaltung.instance.getDozentManager().getDozenten().get(0));
+		//Startdatum des kurses festlegen
+		do {
+			String eingabe = eingabeAbfragen("An welchem Tag startet der Kurs? (Format: 20.10.2019)");
+			if (eingabe == null) {
+				menu();
+				return;
+			}
+
+			if (!kurs.setBeginn(eingabe)) {
+				ungueltigeEingabe(eingabe);
+			}
+		} while (kurs.getBeginn() == null);
+
+		//Enddatum des kurses festlegen
+		do {
+			String eingabe = eingabeAbfragen("An welchem Tag endet der Kurs? (Format: 20.10.2019)");
+			if (eingabe == null) {
+				menu();
+				return;
+			}
+
+			if (!kurs.setEnde(eingabe)) {
+				ungueltigeEingabe(eingabe);
+			}
+		} while (kurs.getEnde() == null);
+
+		//Dozent des Kurses festlegen
+		do {
+			//Dozenten übersicht aufbauen
+			int index = 1;
+			StringBuilder uebersicht = new StringBuilder();
+			for (Dozent dozent : Kursverwaltung.instance.getDozentManager().getDozenten()) {
+				uebersicht.append("(" + index++ + ") " + dozent.getFullName() + "\n");
+			}
+
+			int auswahl = eingabeAbfragenInt(
+					"Bitte wählen Sie einen Leiter für den Kurs aus.\n" + uebersicht
+							.substring(0, uebersicht.length() - 1));
+			if (auswahl == -1) {
+				menu();
+				return;
+			}
+
+			//Eingabe validieren
+			boolean eingabeValid = true;
+			if (auswahl < 1 || auswahl > Kursverwaltung.instance.getDozentManager()
+					.getDozenten().size()) {
+				ungueltigeEingabe(auswahl);
+				eingabeValid = false;
+			}
+
+			//Dozent setzen
+			if (eingabeValid) {
+				Dozent dozent = Kursverwaltung.instance.getDozentManager().getDozenten().get(auswahl - 1);
+				kurs.setLeiter(dozent);
+			}
+		} while (kurs.getLeiter() == null);
 
 		Kursverwaltung.instance.getKursManager().addKurs(kurs);
 		System.out.println("==========================================================");
@@ -252,6 +353,54 @@ public class KursverwaltungsMenue {
 	}
 
 	private static void kursSuchen() {
+		if(Kursverwaltung.instance.getKursManager().getKurse().size() == 0){
+			System.out.println("==========================================================");
+			System.out.println("Es existieren noch keine Kurse.");
+			menu();
+		}
+		//Übersicht der Kurse aufbauen
+		int index = 1;
+		StringBuilder uebersicht = new StringBuilder();
+		for (Kurs kurs : Kursverwaltung.instance.getKursManager().getKurse()) {
+			uebersicht.append("(" + index++ + ") " + kurs.getTitle() + "\n");
+		}
+
+		//Eingabe abfragen
+		int eingabe = eingabeAbfragenInt(
+				"Bitte wählen Sie den anzuzeigenden Kurs an.\n" + uebersicht
+						.substring(0, uebersicht.length() - 1));
+		if (eingabe == -1) {
+			menu();
+			return;
+		}
+
+		//Eingabe validieren
+		if (eingabe < 1 || eingabe > Kursverwaltung.instance.getKursManager().getKurse().size()) {
+			kursSuchen();
+			return;
+		}
+
+		Kurs auswahl = Kursverwaltung.instance.getKursManager().getKurse().get(eingabe - 1);
+		kursAnzeigen(auswahl);
+	}
+
+	public static void kursAnzeigen(Kurs kurs) {
+		System.out.println("==========================================================");
+		//Standartinfos
+		System.out.println("Titel: " + kurs.getTitle());
+		System.out.println("Leiter: " + kurs.getLeiter().getFullName());
+		System.out.println("Startdatum: " + kurs.getBeginnFormatted());
+		System.out.println("Enddatum: " + kurs.getEndeFormatted());
+		Date today = new Date();
+		//Differenz / 1000 (ms) * 60 (s) * 60 (min) * 24 (stunden) = differenz in tagen
+		long diffBeginn = (today.getTime() - kurs.getBeginn().getTime()) / (1000 * 60 * 60 * 24);
+		long diffEnde = (today.getTime() - kurs.getEnde().getTime()) / (1000 * 60 * 60 * 24);
+		System.out.println("Der Kurs " + (diffBeginn == 0 ? "begann heute "
+				: ((diffBeginn < 0 ? "beginnt in " : "begann vor ") + Math.abs(diffBeginn) + " Tagen "))
+				+ "und " + (diffEnde == 0 ? "endet heute "
+				: ((diffEnde < 0 ? "endet in " : "endete vor ") + Math.abs(diffEnde) + " Tagen")));
+
+		kursSuchen();
 	}
 
 	private static void kursBearbeiten() {
@@ -298,10 +447,6 @@ public class KursverwaltungsMenue {
 		}
 
 		return eingabe;
-	}
-
-	private static void clearOutput() {
-		IntStream.range(0, Integer.MAX_VALUE).forEach(i -> System.out.println());
 	}
 
 }

@@ -8,6 +8,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Optional;
 
@@ -36,6 +37,12 @@ public class DozentManager {
 		return this.dozenten;
 	}
 
+	public Dozent getDozentByDozent(Dozent dozentObject) {
+		Optional<Dozent> optionalDozent = this.dozenten.stream()
+				.filter(dozent -> dozent.equals(dozentObject)).findFirst();
+		return optionalDozent.orElse(null);
+	}
+
 	private void dozentenEinlesen() {
 		try {
 
@@ -45,7 +52,7 @@ public class DozentManager {
 				}.getType();
 				dozenten = new Gson().fromJson(json, listType);
 			}
-		} catch (FileNotFoundException | NullPointerException e) {
+		} catch (NoSuchFileException | NullPointerException e) {
 			dozentenDateiErstellen();
 			dozentenSpeichern();
 		} catch (IOException e1) {
@@ -75,5 +82,6 @@ public class DozentManager {
 			e.printStackTrace();
 		}
 	}
+
 
 }

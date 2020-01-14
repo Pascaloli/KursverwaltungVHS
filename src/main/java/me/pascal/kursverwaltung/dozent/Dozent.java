@@ -1,5 +1,6 @@
 package me.pascal.kursverwaltung.dozent;
 
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class Dozent {
@@ -21,12 +22,19 @@ public class Dozent {
 	}
 
 	public boolean setTitle(String title) {
+		if (title.isEmpty()) {
+			return false;
+		}
 		this.title = title;
 		return true;
 	}
 
 	public String getName() {
 		return name;
+	}
+
+	public String getFullName() {
+		return (title.isEmpty() ? "" : title + " ") + name;
 	}
 
 	public boolean setName(String name) {
@@ -69,5 +77,20 @@ public class Dozent {
 			this.telNr = telNr;
 			return true;
 		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		Dozent dozent = (Dozent) o;
+		return title.equals(dozent.title) &&
+				name.equals(dozent.name) &&
+				email.equals(dozent.email) &&
+				telNr.equals(dozent.telNr);
 	}
 }

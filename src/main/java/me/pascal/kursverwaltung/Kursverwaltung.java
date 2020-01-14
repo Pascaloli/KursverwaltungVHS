@@ -15,7 +15,6 @@ public class Kursverwaltung {
 		dozentManager = new DozentManager();
 		kursManager = new KursManager();
 
-
 		KursverwaltungsMenue.start();
 	}
 

@@ -8,23 +8,39 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import me.pascal.kursverwaltung.dozent.Dozent;
 
 public class KursManager {
 
 	private ArrayList<Kurs> kurse = new ArrayList<>();
 	private final File kurseDatei = new File("kurse.txt").getAbsoluteFile();
 
+
 	public KursManager() {
 		kurseEinlesen();
-		System.out.println(kurse.size());
 	}
 
 	public Kurs getKursByTitle(String name) {
 		Optional<Kurs> optionalKurs = this.kurse.stream()
 				.filter(kurs -> kurs.getTitle().equals(name)).findFirst();
 		return optionalKurs.orElse(null);
+	}
+
+	public boolean isDozentInKursen(Dozent dozent) {
+		Optional<Kurs> optionalKurs = this.kurse.stream()
+				.filter(kurs -> kurs.getLeiter().equals(dozent)).findFirst();
+		return optionalKurs.isPresent();
+	}
+
+	public List<Kurs> getKurseByDozent(Dozent dozent) {
+		List<Kurs> kurse = this.kurse.stream()
+				.filter(kurs -> kurs.getLeiter().equals(dozent)).collect(Collectors.toList());
+		return kurse;
 	}
 
 	public void addKurs(Kurs kurs) {
@@ -43,8 +59,18 @@ public class KursManager {
 				Type listType = new TypeToken<ArrayList<Kurs>>() {
 				}.getType();
 				kurse = new Gson().fromJson(json, listType);
+
+			/*	kurse.forEach(kurs -> {
+					Dozent realDozent = Kursverwaltung.instance.getDozentManager().getDozentByDozent(kurs.getLeiter());
+					if(realDozent == null){
+						Kursverwaltung.instance.getDozentManager().addDozent(kurs.getLeiter());
+						realDozent = Kursverwaltung.instance.getDozentManager().getDozentByDozent(kurs.getLeiter());
+					}
+					kurs.setLeiter(realDozent);
+				});*/
+
 			}
-		} catch (FileNotFoundException | NullPointerException e) {
+		} catch (NoSuchFileException | NullPointerException e) {
 			kurseDateiErstellern();
 			kurseSpeichern();
 		} catch (IOException e1) {
